@@ -13,23 +13,7 @@ This project implements a **Retrieval-Augmented Generation (RAG) system** using 
 
 ## 🏗️ Project Structure
 
-rag_system/ 
-│── config/
-│ ├── pinecone_config.py # Pinecone setup
-│ ├── env_loader.py # Loads environment variables
-│
-│── data/
-│ ├── documents/ # Store TXT, PDF, or CSV files here
-│
-│── modules/
-│ ├── document_loader.py # Loads and processes documents
-│ ├── rag_pipeline.py # Core logic for retrieval and response
-│
-│── main.py # Main execution file
-│── requirements.txt # Python dependencies
-│── .env # Environment variables (API keys)
-│── README.md # Project documentation
-
+![Structure](./public/structure.png)
 
 ---
 
