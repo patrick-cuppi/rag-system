@@ -1,0 +1,6 @@
+langchain
+openai
+pinecone-client
+tiktoken
+faiss-cpu
+python-dotenv
