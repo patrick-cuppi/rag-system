@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 from app.services.document_service import DocumentService
 from app.services.rag_service import get_rag_service, RAGService
+from app.api.auth import get_current_user
+from app.db.models import User
 
 router = APIRouter()
 doc_service = DocumentService()
@@ -11,7 +13,10 @@ class ChatRequest(BaseModel):
     question: str
 
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded")
         
@@ -22,7 +27,11 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/chat")
-async def chat(request: ChatRequest, rag_service: RAGService = Depends(get_rag_service)):
+async def chat(
+    request: ChatRequest, 
+    rag_service: RAGService = Depends(get_rag_service),
+    current_user: User = Depends(get_current_user)
+):
     if not request.question:
         raise HTTPException(status_code=400, detail="Question is required")
         

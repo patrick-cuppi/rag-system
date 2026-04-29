@@ -8,3 +8,11 @@ pinecone
 pypdf
 tiktoken
 python-dotenv
+sqlalchemy
+psycopg2-binary
+passlib[bcrypt]
+python-jose[cryptography]
+pytest
+pytest-asyncio
+httpx
+email-validator
