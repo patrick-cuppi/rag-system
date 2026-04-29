@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { Upload, Loader2, Sparkles, CheckCircle2, FileText } from 'lucide-react';
-import { uploadDocument } from '../services/api';
+import { Upload, Loader2, Sparkles, CheckCircle2, FileText, LogOut } from 'lucide-react';
+import { uploadDocument, logout } from '../services/api';
 
 export default function Sidebar() {
   const [uploading, setUploading] = useState(false);
@@ -81,15 +81,23 @@ export default function Sidebar() {
           )}
         </div>
         
-        <div className="mt-auto">
-            <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
-              <FileText className="w-5 h-5 text-white/40" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white/90 truncate">Pinecone Vector DB</p>
-                <p className="text-xs text-white/50">Connected & Ready</p>
-              </div>
-              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+        <div className="mt-auto flex flex-col gap-3">
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center gap-3">
+            <FileText className="w-5 h-5 text-white/40" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white/90 truncate">Pinecone Vector DB</p>
+              <p className="text-xs text-white/50">Connected & Ready</p>
             </div>
+            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+          </div>
+          
+          <button 
+            onClick={logout}
+            className="flex items-center gap-2 p-4 rounded-xl text-white/70 hover:text-red-400 hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-sm font-medium">Sign Out</span>
+          </button>
         </div>
       </div>
     </aside>

@@ -1,8 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
+from app.api.auth import router as auth_router
+from app.db.database import engine, Base
+from app.core.config import settings
 
-app = FastAPI(title="AI Knowledge System API", version="2.0.0")
+# Create database tables
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title=settings.PROJECT_NAME, version=settings.VERSION)
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,4 +18,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(api_router, prefix="/api", tags=["rag"])
