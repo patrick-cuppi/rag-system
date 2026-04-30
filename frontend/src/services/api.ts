@@ -18,15 +18,42 @@ export const uploadDocument = async (file: File) => {
   return response.json();
 };
 
-export const chatWithAskMe = async (question: string) => {
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+export const chatWithAskMe = async (
+  question: string,
+  conversation_id?: number,
+) => {
+  const body: { question: string; conversation_id?: number } = { question };
+  if (conversation_id) body.conversation_id = conversation_id;
+
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 
   if (response.status === 401) handleUnauthorized();
-  if (!response.ok) throw new Error('Chat request failed');
+  if (!response.ok) throw new Error("Chat request failed");
+  return response.json();
+};
+
+export const getConversations = async () => {
+  const response = await fetch("/api/conversations");
+  if (response.status === 401) handleUnauthorized();
+  if (!response.ok) throw new Error("Failed to fetch conversations");
+  return response.json();
+};
+
+export const getConversationMessages = async (id: number) => {
+  const response = await fetch(`/api/conversations/${id}`);
+  if (response.status === 401) handleUnauthorized();
+  if (!response.ok) throw new Error("Failed to fetch conversation");
+  return response.json();
+};
+
+export const getTaskStatus = async (taskId: string) => {
+  const response = await fetch(`/api/tasks/${taskId}`);
+  if (response.status === 401) handleUnauthorized();
+  if (!response.ok) throw new Error("Failed to fetch task status");
   return response.json();
 };
 
