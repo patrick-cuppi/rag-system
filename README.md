@@ -28,7 +28,9 @@ The project follows a **Clean Architecture** approach, separating the user inter
 ### Tech Stack
 - **Frontend:** Next.js (React 18), Tailwind CSS, Lucide Icons, js-cookie
 - **Backend:** FastAPI, Python 3.12, SQLAlchemy, bcrypt, python-jose
-- **Database:** PostgreSQL (for User Data)
+- **Database:** PostgreSQL (for User Data, Chat History, & Task tracking)
+- **Message Broker & Cache:** Redis
+- **Background Jobs:** Celery
 - **AI & Processing:** LangChain, OpenAI (GPT-4 & Embeddings)
 - **Vector Database:** Pinecone
 - **Infrastructure:** Docker & Docker Compose
@@ -39,44 +41,56 @@ The project follows a **Clean Architecture** approach, separating the user inter
 ```mermaid
 sequenceDiagram
     actor User
-    participant Frontend as Next.js Web App
-    participant Auth Middleware
-    participant API as FastAPI Backend
+    participant Frontend as Next.js App
+    participant API as FastAPI
+    participant Celery as Worker
+    participant Redis
     participant DB as PostgreSQL
     participant Pinecone as Vector DB
-    participant OpenAI as LLM (GPT-4)
+    participant OpenAI as LLM
 
-    %% Auth Flow
-    Note over User, DB: Authentication Flow
-    User->>Frontend: Login / Register
-    Frontend->>API: POST /api/auth/...
-    API->>DB: Validate / Store User
-    API-->>Frontend: JWT Access & Refresh Tokens
-    Frontend->>Frontend: Store in Cookies
-    Frontend->>Auth Middleware: Protect Routes
+    %% Upload Flow (Async)
+    Note over User, Pinecone: Async Document Upload Flow
+    User->>Frontend: Uploads Document
+    Frontend->>API: POST /upload
+    API->>DB: Create DocumentTask (status: PROCESSING)
+    API->>Redis: Publish Task to Queue
+    API-->>Frontend: Returns Task ID (202 Accepted)
+    
+    par Background Processing
+        Redis-->>Celery: Consume Task
+        Celery->>Celery: Chunking & Text Extraction
+        Celery->>OpenAI: Generate Embeddings
+        OpenAI-->>Celery: Vector Data
+        Celery->>Pinecone: Store Vectors
+        Celery->>DB: Update Task (status: COMPLETED)
+    and Frontend Polling
+        loop Every 2 seconds
+            Frontend->>API: GET /tasks/{id}
+            API->>DB: Check Status
+            API-->>Frontend: Status (PROCESSING/COMPLETED)
+        end
+    end
 
-    %% Upload Flow
-    Note over User, Pinecone: Document Upload Flow (Protected)
-    User->>Frontend: Uploads Document (PDF/TXT)
-    Frontend->>API: POST /api/upload (Bearer Token)
-    API->>API: Splits text into chunks
-    API->>OpenAI: Generates Embeddings
-    OpenAI-->>API: Returns Vector Data
-    API->>Pinecone: Stores Vectors & Metadata
-    API-->>Frontend: Success Response
-
-    %% Chat Flow
-    Note over User, OpenAI: Chat Flow (Protected)
+    %% Chat Flow with Semantic Cache
+    Note over User, OpenAI: Chat Flow with History & Semantic Cache
     User->>Frontend: Asks a question
-    Frontend->>API: POST /api/chat { question } (Bearer Token)
-    API->>OpenAI: Embeds question
-    OpenAI-->>API: Question Vector
-    API->>Pinecone: Semantic Search (Top-K)
-    Pinecone-->>API: Relevant Document Chunks
-    API->>OpenAI: Prompt (Context + Question)
-    OpenAI-->>API: Generated Answer
-    API-->>Frontend: Returns Answer
-    Frontend-->>User: Displays Answer UI
+    Frontend->>API: POST /chat { question, conv_id }
+    API->>DB: Save User Message & Fetch History
+    
+    API->>Redis: Check Semantic Cache for identical queries
+    alt Cache Hit
+        Redis-->>API: Returns Cached Answer
+    else Cache Miss
+        API->>Pinecone: Semantic Search for Context
+        Pinecone-->>API: Relevant Document Chunks
+        API->>OpenAI: Prompt (History + Context + Question)
+        OpenAI-->>API: Generated Answer
+        API->>Redis: Save Answer to Semantic Cache
+    end
+    
+    API->>DB: Save Assistant Message
+    API-->>Frontend: Returns Answer & conv_id
 ```
 
 ---
@@ -91,6 +105,7 @@ rag-system/
 │   │   ├── core/         # Security (JWT, bcrypt) & Config
 │   │   ├── db/           # SQLAlchemy Models & Connection
 │   │   ├── services/     # Business Logic (RAG & Documents)
+│   │   ├── worker/       # Celery Tasks & App Config
 │   │   └── main.py       # API Entrypoint
 │   ├── tests/            # Pytest test suite
 │   ├── requirements.txt  # Python dependencies
@@ -122,6 +137,7 @@ OPENAI_API_KEY=your_openai_api_key
 PINECONE_API_KEY=your_pinecone_api_key
 PINECONE_INDEX=your_pinecone_index_name
 JWT_SECRET_KEY=generate_a_strong_random_secret_here
+REDIS_URL=url_of_your_redis
 ```
 *(Note: `DATABASE_URL` is automatically injected via docker-compose)*
 

@@ -2,17 +2,20 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
-import { chatWithAskMe } from '../services/api';
+import { chatWithAskMe, getConversationMessages } from '../services/api';
 
 type Message = {
   role: 'user' | 'assistant';
   content: string;
 };
 
-export default function ChatArea() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: 'Hello! I am your AI Knowledge Assistant. Upload some documents and ask me anything about them.' }
-  ]);
+type ChatAreaProps = {
+  activeConversationId: number | null;
+  onConversationCreated: (id: number) => void;
+};
+
+export default function ChatArea({ activeConversationId, onConversationCreated }: ChatAreaProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -25,6 +28,25 @@ export default function ChatArea() {
     scrollToBottom();
   }, [messages, isTyping]);
 
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (activeConversationId) {
+        try {
+          const data = await getConversationMessages(activeConversationId);
+          setMessages(data.messages);
+        } catch (error) {
+          console.error("Error fetching messages:", error);
+          setMessages([{ role: 'assistant', content: 'Failed to load conversation.' }]);
+        }
+      } else {
+        setMessages([
+          { role: 'assistant', content: 'Hello! I am your AI Knowledge Assistant. Upload some documents and ask me anything about them.' }
+        ]);
+      }
+    };
+    fetchMessages();
+  }, [activeConversationId]);
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -35,8 +57,13 @@ export default function ChatArea() {
     setIsTyping(true);
 
     try {
-      const data = await chatWithAskMe(userMsg);
+      const data = await chatWithAskMe(userMsg, activeConversationId || undefined);
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
+      
+      // If this was a new conversation, update the active ID
+      if (!activeConversationId && data.conversation_id) {
+        onConversationCreated(data.conversation_id);
+      }
     } catch (error) {
       console.error('Chat error:', error);
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error while trying to answer your question.' }]);
@@ -97,8 +124,8 @@ export default function ChatArea() {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 md:p-6 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent absolute bottom-0 w-full left-0">
-        <div className="max-w-3xl mx-auto relative">
+      <div className="p-4 md:p-6 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent absolute bottom-0 w-full left-0 pointer-events-none">
+        <div className="max-w-3xl mx-auto relative pointer-events-auto">
           <form onSubmit={handleSendMessage} className="relative flex items-center">
             <input
               type="text"
