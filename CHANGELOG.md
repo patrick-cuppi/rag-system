@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/patrick-cuppi/ask-me-RAG/compare/v1.0.0...v1.1.0) (2026-05-01)
+
+
+### Features
+
+* add observability stack with OpenTelemetry, Prometheus, Grafana & Jaeger ([63907be](https://github.com/patrick-cuppi/ask-me-RAG/commit/63907beffc3c38fc9a12361756bc7d42735a3d2b))
+
 # 1.0.0 (2026-04-30)
 
 
