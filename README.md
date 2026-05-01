@@ -4,12 +4,6 @@ Ask me is a fullstack **Retrieval-Augmented Generation (RAG)** application desig
 
 Instead of searching through endless pages of PDFs, TXTs, or CSVs manually, Ask me allows you to instantly "chat" with your documents. It intelligently retrieves the most relevant paragraphs and uses OpenAI's models to generate precise, conversational answers.
 
-## 🖼️ Login & Sign Up Flow
-![Ask me Login & Sign Up Flow](./public/login_signup_demo.webp)
-
-## 🖼️ Interface Demo
-![Ask me Interface Demo](./public/ask_me_ui_preview.webp)
-
 ## 🎯 What problem does it solve?
 In the era of information overload, businesses and individuals spend countless hours searching for specific answers within dense documents. Traditional keyword search is limited and often misses semantic context. 
 
@@ -34,7 +28,10 @@ The project follows a **Clean Architecture** approach, separating the user inter
 - **AI & Processing:** LangChain, OpenAI (GPT-4 & Embeddings)
 - **Vector Database:** Pinecone
 - **Observability:** OpenTelemetry, Prometheus, Grafana, Jaeger
-- **Infrastructure:** Docker & Docker Compose
+- **Cloud Infrastructure:** AWS (ECS Fargate, RDS, ElastiCache, ALB, ECR, Secrets Manager)
+- **Infrastructure as Code:** Terraform (modular, S3 remote state)
+- **CI/CD:** GitHub Actions (OIDC authentication, zero static credentials)
+- **Containerization:** Docker & Docker Compose
 - **Testing:** Pytest (Backend), Jest & React Testing Library (Frontend)
 
 ### 🧠 How it Works
@@ -96,6 +93,119 @@ sequenceDiagram
 
 ---
 
+## ☁️ Cloud Architecture (AWS)
+
+The application is deployed to **AWS** using a fully automated infrastructure provisioned with **Terraform** and deployed via **GitHub Actions** with **OIDC** authentication (zero static credentials).
+
+```mermaid
+graph TB
+    subgraph "GitHub Actions CI/CD"
+        GH["GitHub Actions"]
+        OIDC["OIDC Federation"]
+        GH --> OIDC
+    end
+
+    subgraph "AWS Cloud"
+        OIDC -->|"AssumeRoleWithWebIdentity"| IAM["IAM Role"]
+        IAM -->|"Push Images"| ECR["ECR Registry"]
+        IAM -->|"Update Services"| CLUSTER
+
+        subgraph "VPC - 10.0.0.0/16"
+            subgraph "Public Subnets"
+                ALB["Application Load Balancer
+                :80 → Frontend
+                /api/* → Backend
+                :3001 → Grafana
+                :16686 → Jaeger
+                :9090 → Prometheus"]
+            end
+
+            subgraph "Private Subnets"
+                subgraph "ECS Fargate Cluster" 
+                    CLUSTER["ECS Cluster"]
+                    FE["Frontend Service
+                    Next.js :3000"]
+                    BE["Backend Service
+                    FastAPI :8000"]
+                    WK["Worker Service
+                    Celery"]
+                    OTEL["OTEL Collector
+                    :4317 / :4318"]
+                    JAEGER["Jaeger
+                    :16686"]
+                    PROM["Prometheus
+                    :9090"]
+                    GRAF["Grafana
+                    :3000"]
+                end
+
+                subgraph "Data Layer"
+                    RDS["RDS PostgreSQL 15
+                    db.t3.micro"]
+                    REDIS["ElastiCache Redis 7
+                    cache.t3.micro"]
+                end
+
+                SM["Secrets Manager
+                OpenAI / Pinecone / JWT"]
+            end
+        end
+    end
+
+    subgraph "External Services"
+        PINECONE["Pinecone
+        Vector DB"]
+        OPENAI["OpenAI
+        GPT-4 / Embeddings"]
+    end
+
+    ALB --> FE
+    ALB --> BE
+    ALB --> GRAF
+    ALB --> JAEGER
+    ALB --> PROM
+    BE --> RDS
+    BE --> REDIS
+    BE --> OTEL
+    WK --> RDS
+    WK --> REDIS
+    WK --> OTEL
+    OTEL --> JAEGER
+    OTEL --> PROM
+    BE --> PINECONE
+    BE --> OPENAI
+    WK --> PINECONE
+    WK --> OPENAI
+    SM -.->|"Inject Secrets"| BE
+    SM -.->|"Inject Secrets"| WK
+    ECR -.->|"Pull Images"| CLUSTER
+
+    classDef aws fill:#FF9900,stroke:#232F3E,color:#232F3E
+    classDef external fill:#6366F1,stroke:#4338CA,color:#FFF
+    classDef github fill:#24292E,stroke:#1B1F23,color:#FFF
+```
+
+### Terraform Modules
+
+| Module | Resources |
+|--------|-----------|
+| **networking** | VPC, 2 public + 2 private subnets (multi-AZ), Internet Gateway, NAT Gateway, Security Groups |
+| **ecr** | 4 container registries (backend, frontend, otel-collector, prometheus) with lifecycle policies |
+| **ecs** | ECS Fargate Cluster, 7 task definitions, 7 services, ALB with path-based routing, Cloud Map service discovery, CloudWatch Logs |
+| **database** | RDS PostgreSQL 15 (encrypted, automated backups) |
+| **cache** | ElastiCache Redis 7.1 |
+| **secrets** | AWS Secrets Manager (OpenAI, Pinecone, JWT keys) |
+
+### CI/CD Pipeline
+
+| Workflow | Trigger | Jobs |
+|----------|---------|------|
+| **CI** (`ci.yml`) | PRs & pushes to `main` | Backend tests (Pytest + Postgres), Frontend (lint + test + build), Terraform validate |
+| **Deploy** (`deploy.yml`) | Push to `main` | Build & push images to ECR → Update ECS services (OIDC auth, zero secrets) |
+| **Release** (`release.yml`) | Push to `main` | Semantic versioning & changelog generation |
+
+---
+
 ## 📂 Project Structure
 
 ```text
@@ -120,20 +230,40 @@ rag-system/
 │   ├── __tests__/        # Jest test suite
 │   ├── package.json
 │   └── Dockerfile        # Frontend Container (Multi-stage build)
+├── terraform/                # Infrastructure as Code (AWS)
+│   ├── main.tf           # Provider, modules, Route 53
+│   ├── variables.tf      # Input variables
+│   ├── outputs.tf        # Resource URLs & ARNs
+│   ├── oidc.tf           # GitHub OIDC Provider + IAM Role
+│   └── modules/
+│       ├── networking/   # VPC, Subnets, Security Groups
+│       ├── ecr/          # Container Registries
+│       ├── ecs/          # Cluster, ALB, Services, IAM
+│       ├── database/     # RDS PostgreSQL
+│       ├── cache/        # ElastiCache Redis
+│       └── secrets/      # AWS Secrets Manager
 ├── observability/            # Monitoring & Tracing Config
 │   ├── otel-collector-config.yaml  # OTel Collector pipeline
-│   └── prometheus.yml              # Prometheus scrape targets
-├── docker-compose.yml        # Infrastructure Orchestration
+│   ├── otel-collector/             # ECS-ready OTEL Collector image
+│   ├── prometheus.yml              # Prometheus scrape targets
+│   └── prometheus/                 # ECS-ready Prometheus image
+├── .github/workflows/        # CI/CD Pipelines
+│   ├── ci.yml            # Continuous Integration
+│   ├── deploy.yml        # Continuous Deployment (OIDC)
+│   └── release.yml       # Semantic Release
+├── docker-compose.yml        # Local Development Orchestration
 └── README.md
 ```
 
 ---
 
-## 🚀 Installation & Setup (Docker)
+## 🚀 Installation & Setup
 
-The easiest and recommended way to run this project is using **Docker Compose**. This will automatically spin up the PostgreSQL database, build the FastAPI backend, and serve the Next.js frontend.
+### Local Development (Docker Compose)
 
-### 1️⃣ Configure Environment Variables
+The easiest way to run this project locally is using **Docker Compose**.
+
+#### 1️⃣ Configure Environment Variables
 
 Create a `.env` file in the `backend/` directory:
 ```env
@@ -145,20 +275,46 @@ REDIS_URL=url_of_your_redis
 ```
 *(Note: `DATABASE_URL` is automatically injected via docker-compose)*
 
-### 2️⃣ Run the Containers
+#### 2️⃣ Run the Containers
 
 At the root of the project, simply run:
 ```bash
 docker compose up -d --build
 ```
 
-### 3️⃣ Access the Services
+#### 3️⃣ Access the Services
 - **Web Interface:** http://localhost:3000
 - **API Swagger Documentation:** http://localhost:8000/docs
 - **Grafana Dashboard:** http://localhost:3001 (login: `admin` / `admin`)
 - **Prometheus Metrics:** http://localhost:9090
 - **Jaeger Tracing UI:** http://localhost:16686
 - **PostgreSQL Database:** Running internally on port `5432`
+
+### AWS Deployment (Terraform)
+
+#### 1️⃣ Bootstrap Remote State
+```bash
+bash scripts/bootstrap-tfstate.sh
+```
+This creates the S3 bucket (versioned + encrypted) and DynamoDB table for Terraform state locking.
+
+#### 2️⃣ Configure & Apply
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your actual values
+terraform init
+terraform plan
+terraform apply
+```
+
+#### 3️⃣ Configure GitHub Secrets
+After `terraform apply`, set these GitHub repository secrets:
+- `AWS_ROLE_ARN` — from Terraform output `github_actions_role_arn`
+- `API_URL` — from Terraform output `alb_url` + `/api`
+
+#### 4️⃣ Deploy
+Push to `main` branch → GitHub Actions will automatically build, push, and deploy! 🚀
 
 ---
 
@@ -193,3 +349,6 @@ npm test
 
 ---
 *Developed with Clean Architecture principles for maximum scalability and security.*
+
+## 🖼️ Interface Demo
+![Ask me Interface Demo](./public/ask_me_ui_preview.webp)
