@@ -33,6 +33,7 @@ The project follows a **Clean Architecture** approach, separating the user inter
 - **Background Jobs:** Celery
 - **AI & Processing:** LangChain, OpenAI (GPT-4 & Embeddings)
 - **Vector Database:** Pinecone
+- **Observability:** OpenTelemetry, Prometheus, Grafana, Jaeger
 - **Infrastructure:** Docker & Docker Compose
 - **Testing:** Pytest (Backend), Jest & React Testing Library (Frontend)
 
@@ -119,6 +120,9 @@ rag-system/
 │   ├── __tests__/        # Jest test suite
 │   ├── package.json
 │   └── Dockerfile        # Frontend Container (Multi-stage build)
+├── observability/            # Monitoring & Tracing Config
+│   ├── otel-collector-config.yaml  # OTel Collector pipeline
+│   └── prometheus.yml              # Prometheus scrape targets
 ├── docker-compose.yml        # Infrastructure Orchestration
 └── README.md
 ```
@@ -151,6 +155,9 @@ docker compose up -d --build
 ### 3️⃣ Access the Services
 - **Web Interface:** http://localhost:3000
 - **API Swagger Documentation:** http://localhost:8000/docs
+- **Grafana Dashboard:** http://localhost:3001 (login: `admin` / `admin`)
+- **Prometheus Metrics:** http://localhost:9090
+- **Jaeger Tracing UI:** http://localhost:16686
 - **PostgreSQL Database:** Running internally on port `5432`
 
 ---

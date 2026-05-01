@@ -18,3 +18,10 @@ httpx
 email-validator
 celery
 redis
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-celery
+opentelemetry-instrumentation-sqlalchemy
+opentelemetry-exporter-otlp
+prometheus-client

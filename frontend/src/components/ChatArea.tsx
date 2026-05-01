@@ -66,7 +66,8 @@ export default function ChatArea({ activeConversationId, onConversationCreated }
       }
     } catch (error) {
       console.error('Chat error:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error while trying to answer your question.' }]);
+      const errorMessage = error instanceof Error ? error.message : 'Sorry, I encountered an error while trying to answer your question.';
+      setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
     } finally {
       setIsTyping(false);
     }

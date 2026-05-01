@@ -14,7 +14,10 @@ export const uploadDocument = async (file: File) => {
   });
 
   if (response.status === 401) handleUnauthorized();
-  if (!response.ok) throw new Error('Upload failed');
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Upload failed');
+  }
   return response.json();
 };
 
@@ -32,7 +35,10 @@ export const chatWithAskMe = async (
   });
 
   if (response.status === 401) handleUnauthorized();
-  if (!response.ok) throw new Error("Chat request failed");
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || "Chat request failed");
+  }
   return response.json();
 };
 
