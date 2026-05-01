@@ -19,6 +19,11 @@ async def upload_document(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file uploaded")
         
+    # Check file size (5MB limit)
+    MAX_FILE_SIZE = 5 * 1024 * 1024
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB.")
+        
     try:
         # Trigger background processing
         task_id = doc_service.process_upload(file)

@@ -53,6 +53,14 @@ export default function Sidebar({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Frontend file size validation (5MB limit)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      alert("File is too large. Maximum size allowed is 5MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setUploading(true);
     setUploadSuccess(null);
 
@@ -85,7 +93,8 @@ export default function Sidebar({
 
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Error uploading file. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Please try again.";
+      alert(`Error uploading file: ${errorMessage}`);
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }

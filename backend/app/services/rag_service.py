@@ -6,7 +6,7 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.vectorstores import Pinecone as PineconeVectorStore
 
 import os
-from langchain.globals import set_llm_cache
+from langchain_core.globals import set_llm_cache
 from langchain_community.cache import RedisSemanticCache
 from app.core.config import settings
 
